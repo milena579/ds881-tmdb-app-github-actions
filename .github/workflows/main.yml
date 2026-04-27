@@ -3,9 +3,14 @@
 name: CI - Testes
 
 on:
+  pull_request:
+    branches:
+      - release
+
   push:
     branches:
       - release
+      
   workflow_dispatch:
 
 jobs:
@@ -42,6 +47,7 @@ jobs:
           path: dist
 
   deploy:
+    if: github.event_name == 'push'
     needs: test
     runs-on: ubuntu-latest
 
@@ -56,6 +62,7 @@ jobs:
   
   # Build do APK
   android-build:
+    if: github.event_name == 'push'
     needs: test
     runs-on: ubuntu-latest
 
@@ -99,6 +106,7 @@ jobs:
 
   # Release do APK
   create-release:
+    if: github.event_name == 'push'
     needs: [test,android-build]
     runs-on: ubuntu-latest
     permissions:
@@ -127,6 +135,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest  
 
     steps:
