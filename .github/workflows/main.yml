@@ -146,6 +146,20 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Criar .env
+        run: echo "EXPO_PUBLIC_TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env
+
+      - name: Gerar build web
+        run: npx expo export --platform web
+
       - name: Login no Docker Hub
         uses: docker/login-action@v2
         with:
