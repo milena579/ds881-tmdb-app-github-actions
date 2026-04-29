@@ -44,6 +44,8 @@ jobs:
         run: touch dist/.nojekyll
 
       - name: Upload do artefato
+        # Condicional para evitar upload duplicado do APK para cada versão do Node.js
+        if: matrix.node-version == 20 
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
