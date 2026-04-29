@@ -44,6 +44,8 @@ jobs:
         run: touch dist/.nojekyll
 
       - name: Upload do artefato
+        # Condicional para evitar upload duplicado do APK para cada versão do Node.js
+        if: matrix.node-version == 20 
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -100,6 +102,8 @@ jobs:
         run: cd android && ./gradlew assembleRelease
 
       - name: Upload do APK como artefato
+      # Condicional para evitar upload duplicado do APK para cada versão do Node.js
+        if: matrix.node-version == 20 
         uses: actions/upload-artifact@v4
         with:
           name: app-release.apk
@@ -149,6 +153,20 @@ jobs:
       - name: Gerar SHA curto
         id: vars
         run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+        
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Criar .env
+        run: echo "EXPO_PUBLIC_TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env
+
+      - name: Gerar build web
+        run: npx expo export --platform web
 
       - name: Login no Docker Hub
         uses: docker/login-action@v2
