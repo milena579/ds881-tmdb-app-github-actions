@@ -100,6 +100,8 @@ jobs:
         run: cd android && ./gradlew assembleRelease
 
       - name: Upload do APK como artefato
+      # Condicional para evitar upload duplicado do APK para cada versão do Node.js
+        if: matrix.node-version == 20 
         uses: actions/upload-artifact@v4
         with:
           name: app-release.apk
