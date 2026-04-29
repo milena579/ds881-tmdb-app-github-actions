@@ -150,6 +150,10 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
+      - name: Gerar SHA curto
+        id: vars
+        run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+        
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
@@ -175,4 +179,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tmdb-app:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tmdb-app:${{ steps.vars.outputs.sha }}
