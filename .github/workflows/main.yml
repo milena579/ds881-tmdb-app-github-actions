@@ -27,6 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
       - name: Instalar dependências
         run: npm ci
@@ -44,15 +45,15 @@ jobs:
         run: touch dist/.nojekyll
 
       - name: Upload do artefato
-        # Condicional para evitar upload duplicado do APK para cada versão do Node.js
+        # Condicional para evitar upload duplicado para cada versão do Node.js
         if: matrix.node-version == 20 
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    if: github.event_name == 'push'
     needs: test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     permissions:
@@ -102,18 +103,60 @@ jobs:
         run: cd android && ./gradlew assembleRelease
 
       - name: Upload do APK como artefato
-      # Condicional para evitar upload duplicado do APK para cada versão do Node.js
-        if: matrix.node-version == 20 
         uses: actions/upload-artifact@v4
         with:
           name: app-release.apk
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
+         
+  # Docker
+  docker-build:
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest  
 
-  # Release do APK
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Gerar SHA curto
+        id: vars
+        run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+        
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Criar .env
+        run: echo "EXPO_PUBLIC_TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env
+
+      - name: Gerar build web
+        run: npx expo export --platform web
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build e push da imagem Docker
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/tmdb-app:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/tmdb-app:${{ steps.vars.outputs.sha }}
+
+    # Release do APK
   create-release:
     if: github.event_name == 'push'
-    needs: [test,android-build]
+    needs: [test,deploy,docker-build,android-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -139,44 +182,3 @@ jobs:
             app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-  # Docker
-  docker-build:
-    if: github.event_name == 'push'
-    needs: test
-    runs-on: ubuntu-latest  
-
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      - name: Gerar SHA curto
-        id: vars
-        run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-        
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Instalar dependências
-        run: npm ci
-
-      - name: Criar .env
-        run: echo "EXPO_PUBLIC_TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}" >> .env
-
-      - name: Gerar build web
-        run: npx expo export --platform web
-
-      - name: Login no Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build e push da imagem Docker
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tmdb-app:${{ steps.vars.outputs.sha }}
